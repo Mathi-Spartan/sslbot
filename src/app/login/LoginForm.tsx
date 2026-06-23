@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,18 +37,23 @@ export function LoginForm() {
     ]);
 
     const next = searchParams.get("next");
+    let destination = "/login";
     if (admin) {
-      router.push(next?.startsWith("/admin") ? next : "/admin");
+      destination = next?.startsWith("/admin") ? next : "/admin";
     } else if (partner) {
-      router.push(next?.startsWith("/partner") ? next : "/partner");
+      destination = next?.startsWith("/partner") ? next : "/partner";
     } else if (customer) {
-      router.push(next?.startsWith("/customer") ? next : "/customer");
+      destination = next?.startsWith("/customer") ? next : "/customer";
     } else {
       setError("Your account isn't linked to a role yet. Contact your administrator.");
       setLoading(false);
       return;
     }
-    router.refresh();
+    // Full navigation (not router.push) so the session cookie set by
+    // signInWithPassword is guaranteed to be present on the very next
+    // request. router.push can race ahead of the cookie write and bounce
+    // back to /login via middleware.
+    window.location.href = destination;
   }
 
   return (
