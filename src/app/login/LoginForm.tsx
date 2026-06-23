@@ -24,7 +24,7 @@ export function LoginForm() {
     });
 
     if (signInError || !data.user) {
-      setError("Incorrect email or password.");
+      setError(signInError?.message ?? "Sign-in failed for an unknown reason.");
       setLoading(false);
       return;
     }
