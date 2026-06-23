@@ -1,10 +1,13 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseServer } from "@/lib/supabase/server";
 import type { Partner } from "@/lib/types";
+import { CreatePartnerForm } from "./CreatePartnerForm";
+import { signOut } from "@/app/actions";
 
 export const dynamic = "force-dynamic";
 
 async function getPartners(): Promise<Partner[]> {
-  const { data, error } = await supabaseAdmin()
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase
     .from("partners")
     .select("*")
     .order("created_at", { ascending: false });
@@ -18,12 +21,23 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10">
       <div className="mx-auto max-w-5xl">
-        <h1 className="text-2xl font-semibold text-slate-900">Partner accounts</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {partners.length} partner{partners.length === 1 ? "" : "s"}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-slate-900">Partner accounts</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {partners.length} partner{partners.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <form action={signOut}>
+            <button className="text-sm text-slate-500 underline">Sign out</button>
+          </form>
+        </div>
 
-        <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
+        <div className="mt-6 mb-6">
+          <CreatePartnerForm />
+        </div>
+
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-left text-slate-500">
               <tr>
