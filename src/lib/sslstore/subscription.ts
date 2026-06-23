@@ -23,10 +23,26 @@ async function request<T>(
     headers: authHeaders(),
     body: options.body ? JSON.stringify(options.body) : undefined,
   });
+  const text = await res.text();
   if (!res.ok) {
-    throw new Error(`TheSSLStore v1 API error ${res.status}: ${await res.text()}`);
+    throw new Error(`TheSSLStore v1 API error ${res.status}: ${text}`);
   }
-  return res.json() as Promise<T>;
+  let json: unknown;
+  try {
+    json = JSON.parse(text);
+  } catch {
+    throw new Error(`TheSSLStore v1 API returned non-JSON response: ${text}`);
+  }
+  // TheSSLStore often returns HTTP 200 even on logical failure, with the
+  // real error inside AuthResponse.isError / AuthResponse.Message.
+  const authResponse = (json as { AuthResponse?: { isError?: boolean; Message?: string[] } })
+    .AuthResponse;
+  if (authResponse?.isError) {
+    throw new Error(
+      `TheSSLStore v1 API error: ${authResponse.Message?.join("; ") ?? "Unknown error"}`,
+    );
+  }
+  return json as T;
 }
 
 export interface Contact {
