@@ -91,51 +91,73 @@ export function NewOrderForm({ products }: { products: Product[] }) {
           </label>
         )}
 
-        {selectedProduct?.order_type === "csr" ? (
-          <>
-            <div>
-              <label className="block text-xs font-medium text-slate-700">
-                CSR (Certificate Signing Request)
-              </label>
-              <textarea
-                name="csr"
-                required
-                rows={5}
-                placeholder="-----BEGIN CERTIFICATE REQUEST-----"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 font-mono text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700">Approver email</label>
-              <input
-                name="approver_email"
-                type="email"
-                required
-                placeholder="admin@example.com"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div>
-              <label className="block text-xs font-medium text-slate-700">
-                Contact phone number
-              </label>
-              <input
-                name="contact_phone"
-                required
-                placeholder="+1 555 0100"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
-              />
-            </div>
-            <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-500">
-              No CSR needed — this is an ACME-based certificate. Once placed, you&apos;ll receive
-              EAB credentials to register your ACME client (certbot, acme.sh) directly with the
-              CA, and certificates will issue and renew automatically.
-            </p>
-          </>
-        )}
+        {(() => {
+          const isAutomate =
+            selectedProduct?.order_type === "csr" &&
+            selectedProduct.product_code.includes("automate");
+
+          if (isAutomate) {
+            return (
+              <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-500">
+                No CSR needed — this is an AutoInstall SSL product. Once placed, you&apos;ll get
+                an order ID and a one-time Token. Log into your own cPanel/Plesk, open the
+                &quot;AutoInstall SSL&quot; panel, and paste the Token there — it generates the
+                CSR, validates the domain, installs, and verifies the certificate automatically
+                on your server.
+              </p>
+            );
+          }
+
+          if (selectedProduct?.order_type === "csr") {
+            return (
+              <>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700">
+                    CSR (Certificate Signing Request)
+                  </label>
+                  <textarea
+                    name="csr"
+                    required
+                    rows={5}
+                    placeholder="-----BEGIN CERTIFICATE REQUEST-----"
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 font-mono text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate-700">Approver email</label>
+                  <input
+                    name="approver_email"
+                    type="email"
+                    required
+                    placeholder="admin@example.com"
+                    className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                  />
+                </div>
+              </>
+            );
+          }
+
+          return (
+            <>
+              <div>
+                <label className="block text-xs font-medium text-slate-700">
+                  Contact phone number
+                </label>
+                <input
+                  name="contact_phone"
+                  required
+                  placeholder="+1 555 0100"
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+                />
+              </div>
+              <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-500">
+                No CSR needed — this is an ACME-based certificate. Once placed, you&apos;ll receive
+                EAB credentials to register your ACME client (certbot, acme.sh) directly with the
+                CA, and certificates will issue and renew automatically.
+              </p>
+            </>
+          );
+        })()}
 
         {error && <p className="text-sm text-red-600">{error}</p>}
         <div className="flex gap-2">

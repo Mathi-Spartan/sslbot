@@ -48,7 +48,9 @@ export async function placeOrder(formData: FormData) {
     .single();
   if (productError || !product) throw new Error("Product not found.");
 
-  if (product.order_type === "csr" && (!csr || !approverEmail)) {
+  const isAutomate = product.order_type === "csr" && product.product_code.includes("automate");
+
+  if (product.order_type === "csr" && !isAutomate && (!csr || !approverEmail)) {
     throw new Error("CSR and approver email are required for this product.");
   }
   if (product.order_type === "acme" && !contactPhone) {
@@ -96,8 +98,8 @@ export async function placeOrder(formData: FormData) {
       is_wildcard: isWildcard,
       order_type: product.order_type,
       status: "pending",
-      csr: csr || null,
-      approver_email: approverEmail || null,
+      csr: isAutomate ? null : csr || null,
+      approver_email: isAutomate ? null : approverEmail || null,
     })
     .select()
     .single();
@@ -110,19 +112,33 @@ export async function placeOrder(formData: FormData) {
     if (product.order_type === "csr") {
       const result = await placeNewOrder({
         productCode: product.product_code,
-        csr,
         domainName,
-        approverEmail,
         customOrderId: order.id,
+        ...(isAutomate ? {} : { csr, approverEmail }),
       });
+
+      // Field casing/shape not yet fully confirmed against the live API for
+      // Automate orders — look up case-insensitively and store the full
+      // raw response regardless so nothing is lost.
+      const lowerKeyed = Object.fromEntries(
+        Object.entries(result).map(([k, v]) => [k.toLowerCase(), v]),
+      );
+      const orderId = lowerKeyed["thesslstoreorderid"];
+      const token = lowerKeyed["token"];
+
       await admin
         .from("orders")
-        .update({ sslstore_order_id: String(result.TheSSLStoreOrderID), status: "submitted" })
+        .update({
+          sslstore_order_id: orderId != null ? String(orderId) : null,
+          auto_install_token: token != null ? String(token) : null,
+          raw_response: result,
+          status: "submitted",
+        })
         .eq("id", order.id);
       await admin.from("order_events").insert({
         order_id: order.id,
         event_type: "submitted",
-        message: `Submitted to TheSSLStore, order ID ${result.TheSSLStoreOrderID}`,
+        message: `Order placed: ${JSON.stringify(result)}`,
       });
     } else {
       const { firstName, lastName } = splitName(customer.name);
@@ -145,6 +161,7 @@ export async function placeOrder(formData: FormData) {
         .from("orders")
         .update({
           sslstore_subscription_id: JSON.stringify(sub),
+          raw_response: sub,
           status: "submitted",
         })
         .eq("id", order.id);

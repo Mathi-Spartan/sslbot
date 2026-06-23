@@ -112,6 +112,14 @@ export default async function CustomerPage() {
                       <p className="max-w-xs truncate font-mono" title={o.sslstore_subscription_id}>
                         {o.sslstore_subscription_id}
                       </p>
+                    ) : o.auto_install_token ? (
+                      <div className="space-y-1">
+                        <p>TheSSLStore order #{o.sslstore_order_id}</p>
+                        <p className="font-mono">Token: {o.auto_install_token}</p>
+                        <p className="text-slate-400">
+                          Log into your cPanel/Plesk → AutoInstall SSL → paste this Token.
+                        </p>
+                      </div>
                     ) : o.sslstore_order_id ? (
                       <p>TheSSLStore order #{o.sslstore_order_id}</p>
                     ) : latestEventByOrder.get(o.id) ? (

@@ -59,6 +59,8 @@ export interface Order {
   eab_kid: string | null;
   eab_hmac_key: string | null;
   sso_login_link: string | null;
+  auto_install_token: string | null;
+  raw_response: unknown;
   created_at: string;
   updated_at: string;
   expires_at: string | null;
