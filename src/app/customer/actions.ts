@@ -155,10 +155,12 @@ export async function placeOrder(formData: FormData) {
       });
     }
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error calling TheSSLStore API.";
+    await admin.from("orders").update({ status: "failed" }).eq("id", order.id);
     await admin.from("order_events").insert({
       order_id: order.id,
       event_type: "api_error",
-      message: err instanceof Error ? err.message : "Unknown error calling TheSSLStore API.",
+      message,
     });
   }
 

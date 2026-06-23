@@ -22,10 +22,27 @@ async function getCustomerData() {
     supabase.from("orders").select("*").eq("customer_id", customer.id).order("created_at", { ascending: false }),
   ]);
 
+  const orderIds = (orders ?? []).map((o) => o.id);
+  const { data: events } = orderIds.length
+    ? await supabase
+        .from("order_events")
+        .select("*")
+        .in("order_id", orderIds)
+        .order("created_at", { ascending: false })
+    : { data: [] };
+
+  const latestEventByOrder = new Map<string, { event_type: string; message: string | null }>();
+  for (const e of events ?? []) {
+    if (!latestEventByOrder.has(e.order_id)) {
+      latestEventByOrder.set(e.order_id, { event_type: e.event_type, message: e.message });
+    }
+  }
+
   return {
     customer,
     products: (products ?? []) as Product[],
     orders: (orders ?? []) as Order[],
+    latestEventByOrder,
   };
 }
 
@@ -41,7 +58,7 @@ function statusBadge(status: string) {
 }
 
 export default async function CustomerPage() {
-  const { customer, products, orders } = await getCustomerData();
+  const { customer, products, orders, latestEventByOrder } = await getCustomerData();
 
   return (
     <div className="min-h-screen bg-slate-50 px-6 py-10">
@@ -97,6 +114,10 @@ export default async function CustomerPage() {
                       </p>
                     ) : o.sslstore_order_id ? (
                       <p>TheSSLStore order #{o.sslstore_order_id}</p>
+                    ) : latestEventByOrder.get(o.id) ? (
+                      <p className={o.status === "failed" ? "text-red-600" : ""}>
+                        {latestEventByOrder.get(o.id)?.message ?? latestEventByOrder.get(o.id)?.event_type}
+                      </p>
                     ) : (
                       <p>Awaiting submission</p>
                     )}
