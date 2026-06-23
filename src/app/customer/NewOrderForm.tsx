@@ -117,11 +117,24 @@ export function NewOrderForm({ products }: { products: Product[] }) {
             </div>
           </>
         ) : (
-          <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-500">
-            No CSR needed — this is an ACME-based certificate. Once placed, you&apos;ll receive
-            EAB credentials to register your ACME client (certbot, acme.sh) directly with the
-            CA, and certificates will issue and renew automatically.
-          </p>
+          <>
+            <div>
+              <label className="block text-xs font-medium text-slate-700">
+                Contact phone number
+              </label>
+              <input
+                name="contact_phone"
+                required
+                placeholder="+1 555 0100"
+                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-1.5 text-sm"
+              />
+            </div>
+            <p className="rounded-md bg-slate-50 p-3 text-xs text-slate-500">
+              No CSR needed — this is an ACME-based certificate. Once placed, you&apos;ll receive
+              EAB credentials to register your ACME client (certbot, acme.sh) directly with the
+              CA, and certificates will issue and renew automatically.
+            </p>
+          </>
         )}
 
         {error && <p className="text-sm text-red-600">{error}</p>}

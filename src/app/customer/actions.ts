@@ -4,7 +4,7 @@ import { supabaseServer } from "@/lib/supabase/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { revalidatePath } from "next/cache";
 import { placeNewOrder } from "@/lib/sslstore/legacy";
-import { createSubscription, getEabCredential } from "@/lib/sslstore/subscription";
+import { createSubscription } from "@/lib/sslstore/subscription";
 
 async function getCallingCustomer() {
   const supabase = await supabaseServer();
@@ -12,11 +12,20 @@ async function getCallingCustomer() {
   if (!user) throw new Error("Not signed in.");
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, partner_id, credit_balance, wallet_balance_usd")
+    .select("id, partner_id, name, email, credit_balance, wallet_balance_usd")
     .eq("user_id", user.id)
     .maybeSingle();
   if (!customer) throw new Error("Not authorized — customer accounts only.");
   return customer;
+}
+
+function splitName(fullName: string) {
+  const parts = fullName.trim().split(/\s+/);
+  const first = parts[0] ?? fullName;
+  return {
+    firstName: first,
+    lastName: parts.slice(1).join(" ") || first,
+  };
 }
 
 export async function placeOrder(formData: FormData) {
@@ -28,6 +37,7 @@ export async function placeOrder(formData: FormData) {
   const isWildcard = formData.get("is_wildcard") === "on";
   const csr = String(formData.get("csr") ?? "").trim();
   const approverEmail = String(formData.get("approver_email") ?? "").trim();
+  const contactPhone = String(formData.get("contact_phone") ?? "").trim();
 
   if (!productId || !domainName) throw new Error("Product and domain are required.");
 
@@ -40,6 +50,9 @@ export async function placeOrder(formData: FormData) {
 
   if (product.order_type === "csr" && (!csr || !approverEmail)) {
     throw new Error("CSR and approver email are required for this product.");
+  }
+  if (product.order_type === "acme" && !contactPhone) {
+    throw new Error("A contact phone number is required for this product.");
   }
 
   // Deduct from the customer's own balance: prefer credits, fall back to wallet.
@@ -112,27 +125,33 @@ export async function placeOrder(formData: FormData) {
         message: `Submitted to TheSSLStore, order ID ${result.TheSSLStoreOrderID}`,
       });
     } else {
+      const { firstName, lastName } = splitName(customer.name);
+      const contact = {
+        firstName,
+        lastName,
+        email: customer.email,
+        phone: contactPhone,
+      };
       const sub = await createSubscription({
         productCode: product.product_code,
         domainName,
         isWildcard,
-        customerEmail: "",
+        customOrderId: order.id,
+        validityMonths: 12,
+        adminContact: contact,
+        technicalContact: contact,
       });
-      const eab = await getEabCredential(sub.subscriptionId);
       await admin
         .from("orders")
         .update({
-          sslstore_subscription_id: sub.subscriptionId,
-          status: "eab_issued",
-          eab_kid: eab.eabKid,
-          eab_hmac_key: eab.eabHmacKey,
-          acme_server_url: eab.acmeServerUrl,
+          sslstore_subscription_id: JSON.stringify(sub),
+          status: "submitted",
         })
         .eq("id", order.id);
       await admin.from("order_events").insert({
         order_id: order.id,
-        event_type: "eab_issued",
-        message: "EAB credentials issued",
+        event_type: "submitted",
+        message: `Subscription created: ${JSON.stringify(sub)}`,
       });
     }
   } catch (err) {

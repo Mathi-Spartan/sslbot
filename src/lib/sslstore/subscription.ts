@@ -1,20 +1,15 @@
 // TheSSLStore Subscription Service (v1) — used for the 2 ACME CaaS products
-// (Sectigo CaaS, PositiveSSL CaaS). Auth is via headers, not a JSON body.
-// Server-side only — never call from the client.
-//
-// NOTE: the sandbox base URL for this v1 API has not been confirmed yet.
-// The legacy API has a clear sandbox-wbapi.thesslstore.com split, but the
-// swagger doc we have only shows api.thesslstore.com (production). Ask
-// TheSSLStore support or check the partner portal for a v1 sandbox host
-// before going live with this client — SSLSTORE_V1_BASE_URL below is a
-// placeholder until that's confirmed.
+// (Sectigo CaaS, PositiveSSL CaaS). Auth confirmed from the live swagger at
+// https://api.thesslstore.com/swagger/index.html#/Subscription%20Service —
+// it accepts a single X-TOKEN header as an alternative to X-DEV-APIKEY +
+// X-PARTNER-CODE. We use X-TOKEN with the existing AuthToken — no separate
+// dev key needed. Server-side only — never call from the client.
 
 const BASE_URL = process.env.SSLSTORE_V1_BASE_URL ?? "https://api.thesslstore.com";
 
 function authHeaders(): HeadersInit {
   return {
-    "X-DEV-APIKEY": process.env.SSLSTORE_DEV_API_KEY ?? "",
-    "X-PARTNER-CODE": process.env.SSLSTORE_PARTNER_CODE ?? "",
+    "X-TOKEN": process.env.SSLSTORE_AUTH_TOKEN ?? "",
     "Content-Type": "application/json",
   };
 }
@@ -34,24 +29,66 @@ async function request<T>(
   return res.json() as Promise<T>;
 }
 
+export interface Contact {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  title?: string;
+  fax?: string;
+}
+
 export interface CreateSubscriptionParams {
   productCode: string;
   domainName: string;
   isWildcard: boolean;
-  customerEmail: string;
+  customOrderId: string;
+  validityMonths: number;
+  adminContact: Contact;
+  technicalContact: Contact;
+}
+
+export interface CreateSubscriptionResponse {
+  // Exact response shape not yet confirmed from swagger — capturing the
+  // raw response and adjusting field access once we see a real result.
+  [key: string]: unknown;
 }
 
 export async function createSubscription(params: CreateSubscriptionParams) {
-  return request<{ subscriptionId: string; status: string }>("/v1/subscriptions", {
+  const contactPayload = (c: Contact) => ({
+    FirstName: c.firstName,
+    LastName: c.lastName,
+    Phone: c.phone,
+    Fax: c.fax ?? "",
+    Email: c.email,
+    Title: c.title ?? "",
+  });
+
+  return request<CreateSubscriptionResponse>("/v1/subscriptions", {
     method: "POST",
     body: {
-      ProductCode: params.productCode,
       DomainName: params.domainName,
-      IsWildcard: params.isWildcard,
-      CustomerEmail: params.customerEmail,
+      StandardDomainNames: params.isWildcard ? "" : params.domainName,
+      StandardReservedCount: params.isWildcard ? 0 : 1,
+      WildcardDomainNames: params.isWildcard ? params.domainName : "",
+      WildcardReservedCount: params.isWildcard ? 1 : 0,
+      ProductCode: params.productCode,
+      CustomOrderID: params.customOrderId,
+      ValidityPeriod: params.validityMonths,
+      AdminContact: contactPayload(params.adminContact),
+      TechnicalContact: contactPayload(params.technicalContact),
+      IsSendNotificationToContact: true,
+      InstallMethod: "",
     },
   });
 }
+
+// NOTE: paths below are not yet confirmed against the live swagger — same
+// source as Create Subscription should be checked for:
+// GET  /v1/subscriptions/{subscriptionId}/status
+// GET  /v1/subscriptions/acme/{subscriptionId}/eab
+// POST /v1/subscriptions/{subscriptionId}/sso-link
+// Update these once confirmed.
 
 export async function getSubscriptionStatus(subscriptionId: string) {
   return request<{ status: string }>(`/v1/subscriptions/${subscriptionId}/status`);

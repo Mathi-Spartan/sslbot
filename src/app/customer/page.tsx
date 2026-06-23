@@ -91,12 +91,10 @@ export default async function CustomerPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2 text-xs text-slate-500">
-                    {o.order_type === "acme" && o.eab_kid ? (
-                      <div className="space-y-1 font-mono">
-                        <p>Server: {o.acme_server_url}</p>
-                        <p>EAB KID: {o.eab_kid}</p>
-                        <p>EAB HMAC: {o.eab_hmac_key}</p>
-                      </div>
+                    {o.order_type === "acme" && o.sslstore_subscription_id ? (
+                      <p className="max-w-xs truncate font-mono" title={o.sslstore_subscription_id}>
+                        {o.sslstore_subscription_id}
+                      </p>
                     ) : o.sslstore_order_id ? (
                       <p>TheSSLStore order #{o.sslstore_order_id}</p>
                     ) : (
